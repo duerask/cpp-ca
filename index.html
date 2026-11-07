@@ -1,0 +1,351 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Programming II (C++) – Continuous Assessment</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={darkMode:'class',theme:{extend:{fontFamily:{sans:['"IBM Plex Sans"','system-ui','sans-serif'],mono:['"IBM Plex Mono"','ui-monospace','monospace']}}}};
+</script>
+<style>
+  body{font-family:'IBM Plex Sans',system-ui,sans-serif}
+  .opt:has(input:checked){border-color:#2457d6;background:rgba(36,87,214,.09)}
+  .dark .opt:has(input:checked){border-color:#6ea0ff;background:rgba(110,160,255,.13)}
+  .opt:focus-within{outline:2px solid #2457d6;outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen">
+
+<header id="bar" class="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur">
+  <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="min-w-0">
+      <div class="font-semibold truncate">Programming II (C++)</div>
+      <div id="who" class="text-xs text-slate-500 dark:text-slate-400 truncate">Continuous Assessment</div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="timerBox" class="hidden items-baseline gap-2">
+        <span id="prog" class="text-xs text-slate-500 dark:text-slate-400"></span>
+        <span id="timer" class="font-mono text-2xl font-medium tabular-nums">35:00</span>
+      </div>
+      <button id="theme" class="rounded-md border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-sm" aria-label="Toggle theme">Theme</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 py-8" id="app"></main>
+
+<div id="modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="bg-white dark:bg-slate-900 rounded-lg max-w-md w-full p-6 shadow-xl">
+    <h2 id="mTitle" class="text-lg font-semibold mb-2"></h2>
+    <p id="mBody" class="text-slate-600 dark:text-slate-300 mb-5"></p>
+    <div id="mBtns" class="flex justify-end gap-2"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- Config ---------- */
+const KEY='cpp_ca_v1', MAX=3, DURATION=35*60, N=30;
+// Paste your Google Apps Script Web app URL (ends with /exec) to receive results in a Google Sheet. Leave '' for local-only mode.
+const SHEET_URL='https://script.google.com/macros/s/AKfy.../exec';
+
+/* ---------- Question bank: [text, [options], indexOfCorrect, topic] ---------- */
+const BANK=[
+["Which symbol starts a single-line comment in C++?",["//","/*","#","--"],0],
+["Which is a valid multi-line comment?",["/* comment */","// comment //","<!-- comment -->","## comment ##"],0],
+["Which statement prints Hello on the screen?",["std::cout << \"Hello\";","print(\"Hello\");","std::cout >> \"Hello\";","echo \"Hello\";"],0],
+["Which escape sequence inserts a new line in a string?",["\\n","\\t","\\\\","\\/"],0],
+["What does \\t insert in an output string?",["A tab","A new line","A backslash","A quote"],0],
+["In std::cout << x; what is << called?",["Insertion operator","Extraction operator","Shift assignment","Scope operator"],0],
+["What happens if you write x = 6; after const int x = 5; ?",["Compile-time error","x becomes 6","x stays 5 silently","Runtime exception"],0],
+["What does #define PI 3.14 do?",["The preprocessor replaces PI with 3.14","Declares a double variable","Declares a function","Creates a const object in memory"],0],
+["Which variable name is INVALID in C++?",["2count","count2","_count","Count"],0],
+["A variable declared inside a function is...",["Local to that function","Global","Visible to every function","Always static"],0],
+["Which type is best for 3.14159 with high precision?",["double","int","char","bool"],0],
+["Which data type stores true or false?",["bool","char","int only","string"],0],
+["What is the value of 7 / 2 when both are int?",["3","3.5","4","2"],0],
+["What is 7 % 3?",["1","2","0","3"],0],
+["Which operator tests equality?",["==","=","!==","==="],0],
+["What is the result of (5 != 5)?",["false (0)","true (1)","5","Compile error"],0],
+["Which expression returns the length of std::string s?",["s.length()","length(s)","s.len","len(s)"],0],
+["With std::string s = \"Code\"; what is s[1]?",["'o'","'C'","'d'","'e'"],0],
+["What does std::string a=\"Hi\", b=\"There\"; cout << a + b; print?",["HiThere","Hi There","Hi+There","Compile error"],0],
+["Which statement reads an integer from the keyboard into x?",["std::cin >> x;","std::cin << x;","std::cout >> x;","input(x);"],0],
+["What does using namespace std; allow?",["Writing cout and string without the std:: prefix","Importing math functions","Declaring main()","Turning off warnings"],0],
+["Which header provides sqrt() and pow()?",["<cmath>","<iostream>","<string>","<cstdlib>"],0],
+["What does pow(2, 3) return?",["8","6","9","5"],0],
+["What does round(3.6) return?",["4","3","3.6","5"],0],
+["What does fmax(4, 9) return?",["9","4","13","5"],0],
+["What is the value of (true && false) || !false ?",["true","false","Compile error","Undefined"],0],
+["Which operator means logical OR?",["||","&&","!","=="],0],
+["int x=5; if(x>3) std::cout<<\"A\"; else std::cout<<\"B\";  prints...",["A","B","AB","Nothing"],0],
+["int n=0; if(n>0) cout<<'P'; else if(n<0) cout<<'N'; else cout<<'Z';  prints...",["Z","P","N","PNZ"],0],
+["In a switch, what happens if a matching case has no break?",["Execution falls through to the next case","The program exits","Compile error","The switch restarts"],0],
+["int i=0; while(i<3){ i++; } cout<<i;  prints...",["3","2","0","Infinite loop"],0],
+["int i=5; do{ cout<<i; i++; } while(i<5);  prints...",["5","Nothing","4","Infinite loop"],0],
+["int s=0; for(int i=0;i<4;i++) s+=i; cout<<s;  prints...",["6","10","4","3"],0],
+["for(i<2) for(j<3) cout<<'*';  How many stars are printed?",["6","5","3","2"],0],
+["For int a[5]; what is the index of the last element?",["4","5","6","1"],0],
+["int a[]={2,4,6}; cout<<a[1];  prints...",["4","2","6","1"],0],
+["Which declares a 2D array with 3 rows and 4 columns?",["int m[3][4];","int m[3,4];","int m(3)(4);","int[3][4] m;"],0],
+["Which return type is used for a function that returns nothing?",["void","null","int","empty"],0],
+["What is a function prototype?",["A declaration giving name, return type and parameters","The body of the function","A call to the function","A kind of loop"],0],
+["When an argument is passed by value, the original variable...",["Is not changed by the function","Is changed by the function","Is deleted","Becomes const"],0],
+["Which keyword defines a class in C++?",["class","object","def","define"],0],
+["Which statement creates an object c of class Car?",["Car c;","class c = Car;","new c Car;","c = Car->;"],0],
+["Members declared private can be accessed...",["Only inside the class","From anywhere","Only from main()","Only from derived files"],0],
+["What does encapsulation mean?",["Bundling data and methods and restricting direct access to data","Repeating code in a loop","Converting types automatically","Reading input from the user"],0],
+["How do you call method drive() on object c?",["c.drive();","c->drive;","c::drive;","drive[c];"],0],
+["Which header must be included to use std::cout?",["<iostream>","<string>","<cmath>","<array>"],0],
+["Which function is the entry point of every C++ program?",["main()","start()","begin()","run()"],0],
+["What does return 0; at the end of main() usually indicate?",["The program ended successfully","An error occurred","The loop must restart","The program is paused"],0],
+["Which symbol ends most C++ statements?",["A semicolon ;","A colon :","A period .","A comma ,"],0],
+["What does std::endl do when sent to cout?",["Ends the line and flushes the output","Ends the program","Declares a variable","Reads a line"],0],
+["What does std::cout << \"2\" << 3; print?",["23","5","Compile error","2 3"],0],
+["How do you print a double quote inside a string?",["\\\"","\"\"","\\q","/\""],0],
+["Which declares an integer variable with an initial value of 10?",["int x = 10;","x = int 10;","integer x = 10;","int x == 10;"],0],
+["Which keyword makes a variable's value unchangeable?",["const","static","final","fixed"],0],
+["Which variable name is valid?",["total_score","total-score","total score","1total"],0],
+["Which type is normally used to store a single character?",["char","string","bool","double"],0],
+["What is the type of the literal 'A'?",["char","string","int","bool"],0],
+["int x = 3.9; cout << x;  prints...",["3","4","3.9","Compile error"],0],
+["What does 10 / 4.0 evaluate to?",["2.5","2","3","4"],0],
+["What does x++ do?",["Increases x by 1","Doubles x","Decreases x by 1","Compares x"],0],
+["After int a=5; a += 3;  what is a?",["8","3","15","53"],0],
+["Which expression is true when x is between 1 and 10 inclusive?",["x >= 1 && x <= 10","x >= 1 || x <= 10","x > 1 && x < 10","!(x >= 1)"],0],
+["What does !true evaluate to?",["false","true","1","Compile error"],0],
+["For std::string a=\"abc\", b=\"abc\"; what is (a == b)?",["true","false","Compile error","Undefined"],0],
+["What does s.size() return for std::string s = \"hello\"?",["5","4","6","0"],0],
+["With std::string a=\"5\", b=\"5\"; what is a + b?",["\"55\"","10","\"10\"","Compile error"],0],
+["Which reads a full line (with spaces) into std::string s?",["std::getline(std::cin, s);","std::cin >> s;","std::cin.line(s);","std::readline(s);"],0],
+["Why does std::cin >> name stop reading at a space?",["The >> operator stops at whitespace","cin only reads numbers","Spaces are errors","name is too short"],0],
+["Which call returns the square root of 25.0?",["sqrt(25.0)","root(25.0)","pow(25.0)","sq(25.0)"],0],
+["What does ceil(2.1) return?",["3","2","2.1","1"],0],
+["What does floor(2.9) return?",["2","3","2.9","1"],0],
+["In a switch statement, which label runs when no case matches?",["default","else","otherwise","final"],0],
+["Which keyword exits a loop immediately?",["break","continue","exit","stop"],0],
+["Which keyword skips to the next iteration of a loop?",["continue","break","skip","next"],0],
+["int x=10; if(x>5){ if(x<8) cout<<\"A\"; else cout<<\"B\"; }  prints...",["B","A","AB","Nothing"],0],
+["How many times does for(int i=1;i<=5;i++) run its body?",["5","4","6","Infinite"],0],
+["What is the main difference between while and do-while?",["do-while runs its body at least once","while runs its body at least once","do-while cannot have a condition","There is none"],0],
+["int i=0; while(i<5){ cout<<i; i+=2; }  prints...",["024","02","0246","01234"],0],
+["int a[3]={1,2,3}; int s=0; for(int i=0;i<3;i++) s+=a[i]; cout<<s;  prints...",["6","3","123","5"],0],
+["What happens when you access a[10] on int a[5]?",["Undefined behaviour (out of bounds)","The compiler always stops with an error","It always returns 0","The array grows"],0],
+["int m[2][3]={{1,2,3},{4,5,6}}; cout<<m[1][0];  prints...",["4","2","1","5"],0],
+["Which declares a function add taking two ints and returning an int?",["int add(int a, int b)","add int(a, b)","function add(int a, int b)","void add(int a, int b)"],0],
+["int sq(int x){ return x*x; }  What does sq(4) return?",["16","8","4","Compile error"],0],
+["What is a function parameter?",["A variable in the definition that receives a value","The function's return value","A loop counter","A comment"],0],
+["A variable declared inside a function body is destroyed when...",["The function ends","The program starts","The file is saved","main() starts"],0],
+["What is a class?",["A blueprint that defines data and methods for objects","A single object in memory","A loop structure","A kind of comment"],0],
+["What is an object?",["An instance of a class","A function prototype","A header file","A constant"],0],
+["Which access specifier allows access from outside the class?",["public","private","hidden","local"],0],
+["Why are data members usually made private?",["To protect data and control access through methods","To make the program faster","To avoid writing functions","Because public is forbidden"],0],
+["Which symbol must follow the closing brace of a class definition?",["A semicolon ;","A colon :","A comma ,","Nothing"],0]
+];
+
+/* ---------- Helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const load=()=>{try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}};
+const save=d=>{try{localStorage.setItem(KEY,JSON.stringify(d))}catch(e){}};
+const done=r=>(r.history||[]).some(h=>h.type==='submitted');
+const send=(rec,event,x)=>{if(!SHEET_URL)return;try{fetch(SHEET_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},keepalive:true,
+  body:JSON.stringify(Object.assign({id:idOf(rec.name,rec.specialty,rec.level),name:rec.name,specialty:rec.specialty,level:rec.level,event,attempt:rec.attempts},x||{}))}).catch(()=>{})}catch(e){}};
+const remote=async id=>{if(!SHEET_URL)return null;const c=new AbortController(),t=setTimeout(()=>c.abort(),7000);
+  try{const r=await fetch(SHEET_URL+'?id='+encodeURIComponent(id),{signal:c.signal});return await r.json()}catch(e){return null}finally{clearTimeout(t)}};
+const idOf=(n,s,l)=>[n,s,l].map(x=>x.toLowerCase().replace(/\s+/g,' ').trim()).join('|');
+const fmt=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+const codeify=t=>esc(t).replace(/(std::\w+|&lt;&lt;|&gt;&gt;|\b(?:int|const|if|else|for|while|do|void|class|switch|string|cout|cin)\b[^,.?]*?;|\b[a-z_]\w*\([^)]*\)|\[[^\]]*\]|\\[nt\\]|#define \w+ [\d.]+|\{[^}]*\})/g,'<code class="font-mono text-[0.92em]">$1</code>');
+
+let state=null, timerId=null, running=false, db=load(), guardOff=false;
+
+/* ---------- Modal (custom, so it never triggers a blur) ---------- */
+function modal(title,body,buttons){
+  $('#mTitle').textContent=title; $('#mBody').textContent=body;
+  const box=$('#mBtns'); box.innerHTML='';
+  buttons.forEach(([label,fn,primary])=>{
+    const b=document.createElement('button');
+    b.textContent=label;
+    b.className='rounded-md px-4 py-2 text-sm font-medium '+(primary?'bg-blue-700 text-white hover:bg-blue-800':'border border-slate-300 dark:border-slate-700');
+    b.onclick=()=>{$('#modal').classList.add('hidden');$('#modal').classList.remove('flex');fn&&fn()};
+    box.appendChild(b);
+  });
+  $('#modal').classList.remove('hidden'); $('#modal').classList.add('flex');
+  box.lastChild.focus();
+}
+
+/* ---------- Login screen ---------- */
+function showLogin(notice){
+  $('#timerBox').classList.add('hidden'); $('#timerBox').classList.remove('flex');
+  $('#who').textContent='Continuous Assessment';
+  $('#app').innerHTML=`
+  <section class="max-w-md mx-auto">
+    <h1 class="text-2xl font-semibold mb-1">Start your assessment</h1>
+    <p class="text-slate-600 dark:text-slate-400 mb-5">${N} multiple-choice questions · 35 minutes · one submission only. If you leave the page by mistake, the attempt is lost and you may retry (${MAX} attempts maximum).</p>
+    ${notice?`<div class="mb-4 rounded-md border border-amber-400 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-700 p-3 text-sm">${esc(notice)}</div>`:''}
+    <div class="rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 text-sm mb-5">
+      Stay on this tab until you submit. Switching tab, minimising the window or clicking outside it ends the attempt immediately, and it still counts.
+    </div>
+    <form id="f" class="space-y-4" novalidate>
+      <label class="block"><span class="text-sm font-medium">Full name</span>
+        <input id="fn" autocomplete="off" class="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2"></label>
+      <label class="block"><span class="text-sm font-medium">Specialty</span>
+        <input id="sp" list="spl" autocomplete="off" placeholder="e.g. Génie Électrique" class="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
+        <datalist id="spl"><option value="Informatique"><option value="Génie Électrique"><option value="Génie Civil"><option value="Génie Mécanique"><option value="Télécommunications"></datalist></label>
+      <label class="block"><span class="text-sm font-medium">Level</span>
+        <select id="lv" class="mt-1 w-full rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2">
+          <option value="">Select a level</option><option>Level 1</option><option>Level 2</option><option>Level 3</option><option>Level 4</option><option>Level 5</option></select></label>
+      <p id="att" class="text-sm font-medium" aria-live="polite"></p>
+      <p id="err" class="text-sm text-red-600 dark:text-red-400" role="alert"></p>
+      <button class="w-full rounded-md bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5">Start attempt</button>
+    </form>
+  </section>`;
+  const upd=()=>{
+    const n=$('#fn').value.trim(),s=$('#sp').value.trim(),l=$('#lv').value;
+    if(!n||!s||!l){$('#att').textContent='';return}
+    db=load(); const r=db[idOf(n,s,l)]||{}, used=r.attempts||0;
+    $('#att').textContent=done(r)?'You have already completed this assessment.':used>=MAX?`Maximum attempt limit (${MAX}) reached.`:`Attempt ${used+1} of ${MAX}`;
+  };
+  ['#fn','#sp','#lv'].forEach(s=>{$(s).addEventListener('input',upd);$(s).addEventListener('change',upd)});
+  $('#f').onsubmit=async e=>{
+    e.preventDefault();
+    const n=$('#fn').value.trim(),s=$('#sp').value.trim(),l=$('#lv').value;
+    if(n.length<3||!s||!l){$('#err').textContent='Enter your full name, specialty and level.';return}
+    const id=idOf(n,s,l); db=load();
+    const rec=db[id]||(db[id]={name:n,specialty:s,level:l,attempts:0,active:false,history:[]});
+    if(SHEET_URL){
+      const btn=$('#f button'); btn.disabled=true; btn.textContent='Checking…';
+      const r=await remote(id);
+      btn.disabled=false; btn.textContent='Start attempt';
+      if(r){rec.attempts=Math.max(rec.attempts,r.attempts||0); if(r.completed&&!done(rec))rec.history.push({type:'submitted',remote:true}); save(db)}
+    }
+    if(done(rec)){
+      modal('Assessment already completed','You have already submitted this assessment, so it cannot be retaken. A new attempt is only possible after an attempt interrupted by leaving the page.',[['Close',null,true]]);return;
+    }
+    if(rec.attempts>=MAX){
+      modal('No attempts left',`Maximum attempt limit (${MAX}) reached. You cannot retake this assessment.`,[['Close',null,true]]);return;
+    }
+    rec.attempts++; rec.active=true; save(db);
+    try{startTest(id,rec)}catch(err){rec.attempts--;rec.active=false;save(db);$('#err').textContent='Could not start the test ('+err.message+'). This did not use an attempt.'}
+  };
+}
+
+/* ---------- Test ---------- */
+function startTest(id,rec){
+  const picked=shuffle(BANK).slice(0,N).map(q=>{
+    const opts=shuffle(q[1].map((t,i)=>({t,ok:i===q[2]})));
+    return {q:q[0],opts};
+  });
+  state={id,picked,answers:new Array(N).fill(null),start:Date.now(),end:Date.now()+DURATION*1000};
+  running=true; startedAt=Date.now();
+  $('#who').textContent=`${rec.name} · ${rec.specialty} · ${rec.level} · Attempt ${rec.attempts} of ${MAX}`;
+  $('#timerBox').classList.remove('hidden'); $('#timerBox').classList.add('flex');
+  $('#app').innerHTML=`<div class="space-y-5">`+picked.map((p,i)=>`
+    <fieldset class="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5">
+      <legend class="sr-only">Question ${i+1}</legend>
+      <p class="font-medium mb-3"><span class="text-slate-500 dark:text-slate-400 mr-1">${i+1}.</span>${codeify(p.q)}</p>
+      <div class="grid gap-2">${p.opts.map((o,j)=>`
+        <label class="opt flex gap-3 items-start cursor-pointer rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2">
+          <input type="radio" name="q${i}" value="${j}" class="mt-1 accent-blue-700">
+          <span><b class="font-mono mr-1.5">${'ABCD'[j]}</b>${codeify(o.t)}</span>
+        </label>`).join('')}
+      </div>
+    </fieldset>`).join('')+`
+    <button id="fin" class="w-full rounded-md bg-blue-700 hover:bg-blue-800 text-white font-medium py-3">Finish &amp; Submit Test</button></div>`;
+  document.querySelectorAll('input[type=radio]').forEach(r=>r.addEventListener('change',()=>{
+    state.answers[+r.name.slice(1)]=+r.value; $('#prog').textContent=`${state.answers.filter(a=>a!==null).length}/${N} answered`;
+  }));
+  $('#prog').textContent=`0/${N} answered`;
+  $('#fin').onclick=()=>{
+    const left=state.answers.filter(a=>a===null).length;
+    guardOff=true;
+    modal('Submit your test?',left?`${left} question(s) are still unanswered. You cannot undo this.`:'You cannot undo this.',
+      [['Keep working',()=>{guardOff=false}],['Submit now',()=>{guardOff=false;submit(false)},true]]);
+  };
+  tick(); timerId=setInterval(tick,250); window.scrollTo(0,0);
+  send(rec,'start');
+}
+function tick(){
+  const left=Math.max(0,Math.ceil((state.end-Date.now())/1000));
+  const t=$('#timer'); t.textContent=fmt(left);
+  t.classList.toggle('text-red-600',left<=300); t.classList.toggle('dark:text-red-400',left<=300);
+  if(left<=0) submit(true);
+}
+
+/* ---------- Anti-cheat ---------- */
+function violation(){
+  if(!running||guardOff) return;
+  running=false; clearInterval(timerId);
+  const rec=db[state.id]; rec.active=false;
+  rec.history.push({type:'violation',date:new Date().toISOString()}); save(db);
+  send(rec,'violation');
+  const left=MAX-rec.attempts;
+  modal('Test reset','Warning: Leaving the test window is prohibited. Your test has been reset for this attempt.'+(left>0?` You have ${left} attempt(s) left.`:` No attempts remain (${MAX}/${MAX} used).`),
+    [['OK',()=>showLogin(),true]]);
+}
+let startedAt=0;
+// Ignore the first 2 s and re-check focus after 0.4 s, so brief focus glitches (autofill, popups) are not penalised.
+const check=()=>{if(!running||guardOff||Date.now()-startedAt<2000)return;if(document.hidden||!document.hasFocus())violation()};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)check()});
+window.addEventListener('blur',()=>setTimeout(check,400));
+
+/* ---------- Submit & results ---------- */
+function submit(auto){
+  if(!running) return;
+  running=false; clearInterval(timerId);
+  document.querySelectorAll('input').forEach(i=>i.disabled=true);
+  const rec=db[state.id]; rec.active=false;
+  const secs=Math.min(DURATION,Math.round((Date.now()-state.start)/1000));
+  let score=0;
+  const rows=state.picked.map((p,i)=>{
+    const a=state.answers[i], ok=a!==null&&p.opts[a].ok; if(ok)score++;
+    return {q:p.q,chosen:a===null?null:p.opts[a].t,correct:p.opts.find(o=>o.ok).t,ok};
+  });
+  rec.history.push({type:'submitted',score,total:N,secs,auto,date:new Date().toISOString()}); save(db);
+  send(rec,auto?'submitted (time up)':'submitted',{score,total:N,pct:Math.round(score/N*100),secs});
+  showResults(rec,score,secs,rows,auto);
+}
+function showResults(rec,score,secs,rows,auto){
+  $('#timerBox').classList.add('hidden'); $('#timerBox').classList.remove('flex');
+  const pct=Math.round(score/N*100);
+  $('#app').innerHTML=`
+  <section class="rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 mb-6">
+    <h1 class="text-2xl font-semibold mb-1">${auto?'Time is up – test submitted':'Test submitted'}</h1>
+    <p class="text-slate-600 dark:text-slate-400 mb-4">${esc(rec.name)} · ${esc(rec.specialty)} · ${esc(rec.level)}</p>
+    <div class="grid grid-cols-3 gap-3 text-center">
+      <div class="rounded-md bg-slate-100 dark:bg-slate-800 py-3"><div class="text-3xl font-semibold">${score}/${N}</div><div class="text-xs text-slate-500 dark:text-slate-400">Score</div></div>
+      <div class="rounded-md bg-slate-100 dark:bg-slate-800 py-3"><div class="text-3xl font-semibold">${pct}%</div><div class="text-xs text-slate-500 dark:text-slate-400">Percentage</div></div>
+      <div class="rounded-md bg-slate-100 dark:bg-slate-800 py-3"><div class="text-3xl font-semibold font-mono">${fmt(secs)}</div><div class="text-xs text-slate-500 dark:text-slate-400">Time taken</div></div>
+    </div>
+    <div class="mt-5 flex flex-wrap gap-2">
+      <button onclick="window.print()" class="rounded-md border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm">Print / save as PDF</button>
+      <button onclick="showLogin()" class="rounded-md bg-blue-700 text-white px-4 py-2 text-sm">Back to start</button>
+    </div>
+  </section>
+  <h2 class="font-semibold mb-3">Review</h2>
+  <div class="space-y-3">`+rows.map((r,i)=>`
+    <div class="rounded-md border-l-4 ${r.ok?'border-green-600':'border-red-600'} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4">
+      <p class="font-medium mb-2">${i+1}. ${codeify(r.q)}</p>
+      <p class="text-sm ${r.ok?'text-green-700 dark:text-green-400':'text-red-700 dark:text-red-400'}">${r.ok?'Correct':'Incorrect'} – your answer: ${r.chosen===null?'<i>none</i>':codeify(r.chosen)}</p>
+      ${r.ok?'':`<p class="text-sm text-green-700 dark:text-green-400">Correct answer: ${codeify(r.correct)}</p>`}
+    </div>`).join('')+`</div>`;
+  window.scrollTo(0,0);
+}
+
+/* ---------- Theme & boot ---------- */
+const applyTheme=d=>document.documentElement.classList.toggle('dark',d);
+let savedTheme=null;try{savedTheme=localStorage.getItem('cpp_ca_theme')}catch(e){}
+applyTheme(savedTheme?savedTheme==='dark':matchMedia('(prefers-color-scheme: dark)').matches);
+$('#theme').onclick=()=>{const d=!document.documentElement.classList.contains('dark');applyTheme(d);try{localStorage.setItem('cpp_ca_theme',d?'dark':'light')}catch(e){}};
+
+// An attempt still marked active at page load means the student reloaded or closed the page mid-test: it stays counted.
+let interrupted=false;
+Object.values(db).forEach(r=>{if(r.active){r.active=false;r.history.push({type:'interrupted',date:new Date().toISOString()});interrupted=true}});
+if(interrupted) save(db);
+showLogin(interrupted?'A previous attempt was interrupted (page reloaded or closed). It still counts as one of your attempts.':'');
+</script>
+</body>
+</html>
